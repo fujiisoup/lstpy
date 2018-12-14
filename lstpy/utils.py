@@ -37,7 +37,7 @@ def histogram(dataarray, n_bins=1, max_values=None):
         n_bins = (1, ) * len(dataarray['ch'])
     n_bins = np.array(n_bins)
 
-    data = np.histogramdd(dataarray.values, bins=max_values // n_bins)
+    data, _ = np.histogramdd(dataarray.values, bins=max_values // n_bins)
 
     # construct coordinate and dimensions
     coords = {}
@@ -46,4 +46,4 @@ def histogram(dataarray, n_bins=1, max_values=None):
         k = 'ADC{}'.format(ch.values.item())
         dims.append(k)
         coords[k] = np.arange(0, max_values[i], n_bins[i])
-     return xr.DataArray(data, dims=dims, coords=coords)
+    return xr.DataArray(data, dims=dims, coords=coords)
