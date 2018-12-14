@@ -367,7 +367,7 @@ def decode4(data):
                         ch[l] = i
                     time[l] = t_count
                     events[l] = event_id
-                    values[l] = (data[j] >> (pos * 4)) & 0xFFFF
+                    values[l] = (data[j] >> (pos * 16)) & 0xFFFF
                     l += 1
                     pos += 1
                     if pos == 4:
@@ -376,5 +376,7 @@ def decode4(data):
 
             if pos != 0:
                 j += 1
+        else:
+            raise ValueError  # TODO skip to the next timer event
 
     return values[:l], time[:l], ch[:l], events[:l], t_count
