@@ -11,11 +11,9 @@ file = THIS_DIR + '/data/Neon_KLL_002.lst'
 
 @pytest.mark.parametrize(('filename', 'chunk', 'join'), [
     (file, None, 'inner'),
-#     (file, 1024, 'inner')
 ])
 def test_load_xr(filename, chunk, join):
     data = lstpy.load_xr(filename, chunk=chunk, join=join)
-    print(data)
     # make sure it can be saved as netcdf
     data.to_netcdf('test.nc')
     os.remove('test.nc')
