@@ -1,6 +1,7 @@
 from os.path import getsize
 from collections import OrderedDict
 from multiprocessing import Pool
+from functools import partial
 
 import numpy as np
 from numba import njit
@@ -27,14 +28,21 @@ def load(filename, chunk=None):
     """
     filesize = getsize(filename)
     with open(filename, 'rb') as file:
-        file, header = _read_header(file)
-        return header, _load_np(file, filesize, chunk)
+        file, header, version, is_ascii = _read_header(file)
+        if version == 3:
+            return header, _load_np(file, filesize, chunk)
+        elif version == 4:
+            return header, _load_np4(file, filesize, chunk, is_ascii)
 
 
 def _parse_header(header):
     header_dict = OrderedDict()
     prefix = ''
     for line in header:
+        # TODO temporary skip this
+        if line[0] == ';':
+            continue
+
         line = line.strip()
         if '[' in line and ']' in line:
             prefix = line[1: line.find(']')] + '.'
@@ -56,6 +64,7 @@ def _parse_header(header):
                 header_dict[k] = float(v)
             except ValueError:
                 header_dict[k] = v
+
     return header_dict
 
 
@@ -128,10 +137,20 @@ def _read_header(file):
     header = []
     while True:
         line = file.readline().decode('utf-8').strip()
-        if line == '[LISTDATA]':
+        if line in ('[LISTDATA]', '[DATA]'):
             break
         header.append(line)
-    return file, header
+
+    is_ascii = False
+    if '[MPA3]' in header[0]:
+        version = 3
+    elif '[MPA4A]' in header[0]:
+        version = 4
+        is_ascii = True
+    else:
+        raise NotImplementedError('{} is not supported.'.format(header[0]))
+
+    return file, header, version, is_ascii
 
 
 def _load_np(file, filesize, chunk):
@@ -276,3 +295,86 @@ def _next_timer_pos(data, j):
         if (data[i: i + 2] == OxFF).all() and data[i - 1] == 0x4000:
             return i - 2
     return n
+
+
+def _load_np4(file, filesize, chunk, is_ascii):
+    """
+    For MPA4 format
+    """
+    pos = file.tell()
+    size = (filesize - pos) // np.dtype('u2').itemsize
+    if is_ascii:
+        str2int = partial(int, base=16)
+        # TODO enable chunk
+        data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
+    else:
+        raise NotImplementedError(
+            'binary format for MPA4 system is not yet Implemented.')
+
+    n = len(data)
+    if chunk is None:
+        # read into memory
+        return decode4(data.copy())[:4]  # do not return t_last
+    else:
+        raise NotImplementedError('chunk is not supported for MPA4 data.')
+
+
+@njit
+def decode4(data):
+    n = len(data)
+
+    values = np.zeros(n, dtype=np.uint16)
+    ch = np.zeros(n, dtype=np.int8)
+    time = np.zeros(n, dtype=np.uint32)
+    events = np.zeros(n, dtype=np.uint32)
+
+    l = 0  # index for data values
+    t_count = 0  # index for the timing
+    j = 0
+    event_id = 0
+    timer_event = True
+
+    adc_bmask = np.array([0b00000001, 0b00000010, 0b00000100, 0b00001000,
+                          0b00010000, 0b00100000, 0b01000000, 0b10000000])
+
+    while j < n - 1:
+        da = data[j]
+        if da & 0b1000 == 8:  # timer
+            t_count += 1
+            alive_adcs = ~((da & 0xFF00) >> 8)
+            j += 1
+
+        elif (da & 0x40) >> 6 == 0:  # single ADC
+            event_id += 1
+            time[l] = (da >> 32) & 0xFFFFFFFF
+            values[l] = (da >> 16) & 0xFFFF
+            j += 1
+            l += 1
+
+        elif (da & 0x40) >> 6 == 1:  # coincidence ADC
+            event_id += 1
+            time[l] = t_count
+            aux1 = (da & 0b100) >> 3
+            aux2 = (da & 0b1000) >> 4
+
+            active_adcs = (da & 0xFF00) >> 8
+            pos = 1
+            for i, bmask in enumerate(adc_bmask):
+                if (active_adcs & bmask) != 0:
+                    if (alive_adcs & bmask) == 0:
+                        ch[l] = -1  # set -1 for dead channels
+                    else:
+                        ch[l] = i
+                    time[l] = t_count
+                    events[l] = event_id
+                    values[l] = (data[j] >> (pos * 4)) & 0xFFFF
+                    l += 1
+                    pos += 1
+                    if pos == 4:
+                        pos = 0
+                        j += 1
+
+            if pos != 0:
+                j += 1
+
+    return values[:l], time[:l], ch[:l], events[:l], t_count
