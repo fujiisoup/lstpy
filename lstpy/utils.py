@@ -1,4 +1,12 @@
 import numpy as np
+from .load import load_xr
+
+
+def load_histogram(filename, n_bins=1, max_values=2**13, chunk=None,
+                   remove_rare_ch=0.001):
+    return histogram(load_xr(filename, chunk, join='inner',
+                             remove_rare_ch=remove_rare_ch),
+                     n_bins=n_bins, max_values=max_values)
 
 
 def histogram(dataarray, n_bins=1, max_values=None):
@@ -36,8 +44,11 @@ def histogram(dataarray, n_bins=1, max_values=None):
     else:
         n_bins = (1, ) * len(dataarray['ch'])
     n_bins = np.array(n_bins)
+    bins = (np.floor(max_values / n_bins)).astype(int)
+    max_values = (np.ceil(max_values / n_bins)).astype(int)
 
-    data, _ = np.histogramdd(dataarray.values, bins=max_values // n_bins)
+    data, edges = np.histogramdd(dataarray.values, bins=bins,
+                                 range=[(0, m) for m in max_values])
 
     # construct coordinate and dimensions
     coords = {}
@@ -45,5 +56,5 @@ def histogram(dataarray, n_bins=1, max_values=None):
     for i, ch in enumerate(dataarray['ch']):
         k = 'ADC{}'.format(ch.values.item())
         dims.append(k)
-        coords[k] = np.arange(0, max_values[i], n_bins[i])
+        coords[k] = 0.5 * (edges[i][1:] + edges[i][:-1]) * n_bins[i]
     return xr.DataArray(data, dims=dims, coords=coords)

@@ -10,8 +10,7 @@ file = THIS_DIR + '/data/Neon_KLL_002.lst'
 
 
 @pytest.mark.parametrize(('n_bin', 'max_values'), [
-    (1, 1000), (2, (1000, 1000)), (10, None)
+    (1, 1000), (2, (1000, 1000)), (100, None)
 ])
 def test_histogram(n_bin, max_values):
-    data = lstpy.load_xr(file, join='inner')
-    hist = lstpy.utils.histogram(data, n_bin, max_values)
+    hist = lstpy.load_histogram(file, n_bin, max_values)

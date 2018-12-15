@@ -1,6 +1,6 @@
 # lstpy
 
-A small library to read output files MPA3 system lst file.
+A small library to read output files MPA3 / MPA4 system lst file.
 lstpy is full-python code but thanks to `numba` and multi-threading, the readout is fast enough.
 
 # Install
@@ -25,6 +25,8 @@ xarray greatly simplifies the further analysis.
 
 # Usage
 
+## Basic usage
+
 ```python
 import lstpy
 
@@ -35,7 +37,6 @@ or with xarray, then you can use
 
 ```python
 >>> import lstpy
-
 >>> lstpy.load_xr(filename)
 
 <xarray.DataArray (ch: 2, events: 28991)>
@@ -49,3 +50,35 @@ Attributes:
     ctm:          400
     ...
 ```
+
+## More practical usage
+
+Load a list file and construct a histogram.
+
+```python
+>>> import lstpy
+>>> import numpy as np
+>>> da = lstpy.load_histogram('test_public/data/Neon_KLL_002.lst', n_bins=2)
+>>> da
+
+<xarray.DataArray (ADC0: 1024, ADC1: 1024)>
+array([[0., 0., 0., ..., 0., 0., 0.],
+       [0., 0., 0., ..., 0., 0., 0.],
+       [0., 0., 0., ..., 0., 0., 0.],
+       ...,
+       [0., 0., 0., ..., 0., 0., 0.],
+       [0., 0., 0., ..., 0., 0., 0.],
+       [0., 0., 0., ..., 0., 0., 0.]])
+Coordinates:
+  * ADC0     (ADC0) float64 4.0 12.0 20.0 28.0 ... 8.172e+03 8.18e+03 8.188e+03
+  * ADC1     (ADC1) float64 4.0 12.0 20.0 28.0 ... 8.172e+03 8.18e+03 8.188e+03
+
+>>> np.log(da).plot()
+```
+![alt text](doc/test.png "Logo Title Text 1")
+
+
+# Constribution
+
+Not all the features of MPA system are not yet supported. Contributions are welcome.
+If you have any questions or request, raise an issue for Github issue page.
