@@ -142,13 +142,11 @@ def _read_header(file):
         header.append(line)
 
     is_ascii = False
-    if '[MPA3]' in header[0]:
-        version = 3
-    elif '[MPA4A]' in header[0]:
+    if '[MPA4A]' in header[0]:
         version = 4
         is_ascii = True
     else:
-        raise NotImplementedError('{} is not supported.'.format(header[0]))
+        version = 3
 
     return file, header, version, is_ascii
 

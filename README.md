@@ -6,7 +6,7 @@ lstpy is full-python code but thanks to `numba` and multi-threading, the readout
 # Install
 
 ```
-python setup.py install
+pip install lstpy
 ```
 
 # Requirements

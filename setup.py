@@ -19,7 +19,7 @@ else:
 setup(name='lstpy',
       version=verstr,
       author="Keisuke Fujii",
-      author_email="fujii@me.kyoto-u.ac.jp",
+      author_email="fujiisoup@gmail.com",
       description=("Python library to read list file for MPA3 system"),
       license="BSD 3-clause",
       keywords="data acquisition",
@@ -29,9 +29,10 @@ setup(name='lstpy',
       packages=["lstpy", ],
       package_dir={'lstpy': 'lstpy'},
       py_modules=['lstpy.__init__'],
-      test_suite='tests',
+      test_suite='test_public',
       install_requires="""
         numpy>=1.11
+        numba>=0.39
         """,
       classifiers=['License :: OSI Approved :: BSD License',
                    'Natural Language :: English',
