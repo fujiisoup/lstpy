@@ -309,10 +309,9 @@ def _load_np4(file, filesize, chunk, is_ascii):
         raise NotImplementedError(
             'binary format for MPA4 system is not yet Implemented.')
 
-    n = len(data)
     if chunk is None:
         # read into memory
-        return decode4(data.copy())[:4]  # do not return t_last
+        return decode4(data)[:4]  # do not return t_last
     else:
         raise NotImplementedError('chunk is not supported for MPA4 data.')
 
@@ -321,10 +320,10 @@ def _load_np4(file, filesize, chunk, is_ascii):
 def decode4(data):
     n = len(data)
 
-    values = np.zeros(n, dtype=np.uint16)
-    ch = np.zeros(n, dtype=np.int8)
-    time = np.zeros(n, dtype=np.uint32)
-    events = np.zeros(n, dtype=np.uint32)
+    values = np.zeros(n * 2, dtype=np.uint16)
+    ch = np.zeros(n * 2, dtype=np.int8)
+    time = np.zeros(n * 2, dtype=np.uint32)
+    events = np.zeros(n * 2, dtype=np.uint32)
 
     l = 0  # index for data values
     t_count = 0  # index for the timing

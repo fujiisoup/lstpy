@@ -1,6 +1,6 @@
 # lstpy
 
-A small library to read output files MPA3 / MPA4 system lst file.
+A small library to read output files MPA3 / MPA4 system **lst** file.
 lstpy is full-python code but thanks to `numba` and multi-threading, the readout is fast enough.
 
 # Install
@@ -33,7 +33,7 @@ import lstpy
 header, (values, time, ch, events) = lstpy.load(filename)
 ```
 
-or with xarray, then you can use
+or with xarray, you can get a single object
 
 ```python
 >>> import lstpy
@@ -81,4 +81,4 @@ Coordinates:
 # Constribution
 
 Not all the features of MPA system are not yet supported. Contributions are welcome.
-If you have any questions or request, raise an issue for Github issue page.
+If you have any questions or request, raise an issue at Github issue page.
