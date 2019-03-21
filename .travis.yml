@@ -31,7 +31,7 @@ script:
   - which python
   - python --version
   - python -OO -c "import lstpy"
-  - py.test test_public --cov=lstpy --cov-report term-missing --verbose;
+  - py.test test_public
 
 after_success:
   - coveralls

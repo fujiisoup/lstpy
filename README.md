@@ -1,4 +1,5 @@
 # lstpy
+[![Build Status](https://travis-ci.org/fujiisoup/lstpy.svg?branch=master)](https://travis-ci.org/fujiisoup/lstpy)
 
 A small library to read output files MPA3 / MPA4 system **lst** file.
 lstpy is full-python code but thanks to `numba` and multi-threading, the readout is fast enough.
