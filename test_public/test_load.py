@@ -7,7 +7,6 @@ import lstpy
 
 THIS_DIR = os.path.dirname(__file__)
 file = THIS_DIR + '/data/Neon_KLL_002.lst'
-file2 = THIS_DIR + '/data/Oxygen_330.lst'
 
 
 @pytest.mark.parametrize(('filename', 'chunk', 'join'), [
