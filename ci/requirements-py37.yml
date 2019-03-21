@@ -7,3 +7,4 @@ dependencies:
   - xarray
   - numba
   - pytest
+  - netcdf4
