@@ -302,7 +302,11 @@ def _load_np4(file, filesize, chunk, is_ascii):
     pos = file.tell()
     size = (filesize - pos) // np.dtype('u2').itemsize
     if is_ascii:
-        str2int = partial(int, base=16)
+        def str2int(s):
+            hi = np.array(int(s[:8], base=16), dtype=np.int64)
+            lo = np.array(int(s[8:], base=16), dtype=np.int64)
+            return hi << 16 + lo
+
         # TODO enable chunk
         data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
