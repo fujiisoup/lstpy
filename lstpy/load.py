@@ -120,7 +120,6 @@ def load_xr(filename, chunk=None, join='inner', remove_rare_ch=0.001):
                 valids[i] = False
     channels = channels[valids]
     channels = channels[channels >= 0]
-    print(channels)
     dataarrays = []
     for ch in channels:
         da = dataarray[dataarray['ch'] == ch]
