@@ -120,7 +120,6 @@ def load_xr(filename, chunk=None, join='inner', remove_rare_ch=0.001):
                 valids[i] = False
     channels = channels[valids]
     channels = channels[channels >= 0]
-
     dataarrays = []
     for ch in channels:
         da = dataarray[dataarray['ch'] == ch]
@@ -302,7 +301,10 @@ def _load_np4(file, filesize, chunk, is_ascii):
     pos = file.tell()
     size = (filesize - pos) // np.dtype('u2').itemsize
     if is_ascii:
-        str2int = partial(int, base=16)
+        def str2int(s):
+            val = np.int64(int(s[:8], base=16)) << 32 | np.int64(int(s[8:], base=16))
+            return val
+
         # TODO enable chunk
         data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
@@ -343,8 +345,12 @@ def decode4(data):
 
         elif (da & 0x40) >> 6 == 0:  # single ADC
             event_id += 1
+            # find an corresponding ADC
+            channel = (da & 0b111000) >> 3
             time[l] = (da >> 32) & 0xFFFFFFFF
+            events[l] = event_id
             values[l] = (da >> 16) & 0xFFFF
+            ch[l] = channel
             j += 1
             l += 1
 
