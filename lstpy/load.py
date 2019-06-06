@@ -313,7 +313,7 @@ def _load_np4(file, filesize, chunk, is_ascii):
 
         if _HAS_PANDAS_:
             # TODO enable chunk
-            data = pd.read_csv(file, converters={0: str2int}, dtype=np.int64).values[:, 0]
+            data = pd.read_csv(file, converters={0: str2int}).values[:, 0]
         else:
             data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
