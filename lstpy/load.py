@@ -33,8 +33,10 @@ def load(filename, chunk=None):
             return header, _load_np(file, filesize, chunk)
         elif version == 4:
             try:
+                pos = file.tell()
                 return header, _load_np4(file, filesize, chunk, is_ascii)
             except ValueError:  # in case of binary file
+                file.seek(pos)
                 return header, _load_np4(file, filesize, chunk, False)
 
 
