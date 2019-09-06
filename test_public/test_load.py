@@ -21,10 +21,12 @@ def test_load_xr(filename, chunk, join):
     # make sure it can be saved as netcdf
     data.to_netcdf('test.nc')
     os.remove('test.nc')
-
     assert set(['time', 'ch', 'events']) == set(data.coords.keys())
     # make sure at least join='inner', it will be the uint16
     if join == 'inner':
         assert data.dtype == np.uint16
         assert data['ch'].dtype == np.int8
         assert data['time'].dtype == np.uint32
+
+    assert len(data['ch']) > 0
+    assert len(data['events']) > 0
