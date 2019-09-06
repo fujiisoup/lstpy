@@ -32,7 +32,10 @@ def load(filename, chunk=None):
         if version == 3:
             return header, _load_np(file, filesize, chunk)
         elif version == 4:
-            return header, _load_np4(file, filesize, chunk, is_ascii)
+            try:
+                return header, _load_np4(file, filesize, chunk, is_ascii)
+            except ValueError:  # in case of binary file
+                return header, _load_np4(file, filesize, chunk, False)
 
 
 def _parse_header(header):
@@ -111,7 +114,6 @@ def load_xr(filename, chunk=None, join='inner', remove_rare_ch=0.001):
                                       'ch': ('entry', ch),
                                       'events': ('entry', events)},
                               attrs=_parse_header(header))
-
     channels, counts = np.unique(ch, return_counts=True)
     valids = [True] * len(channels)
     if remove_rare_ch is not None:
@@ -308,8 +310,8 @@ def _load_np4(file, filesize, chunk, is_ascii):
         # TODO enable chunk
         data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
-        raise NotImplementedError(
-            'binary format for MPA4 system is not yet Implemented.')
+        data = np.memmap(file, dtype='<u2', mode='r', offset=pos,
+                         shape=(size, ))
 
     if chunk is None:
         # read into memory

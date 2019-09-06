@@ -7,10 +7,14 @@ import lstpy
 
 THIS_DIR = os.path.dirname(__file__)
 file = THIS_DIR + '/data/Neon_KLL_002.lst'
+file2 = THIS_DIR + '/data/Biedermann036.lst'
+file3 = THIS_DIR + '/data/binary_example_3dimenions_mpa4.lst'
 
 
 @pytest.mark.parametrize(('filename', 'chunk', 'join'), [
-    (file, None, 'inner'),
+    # (file, None, 'inner'),
+    # (file2, None, 'inner'),
+    (file3, None, 'inner'),
 ])
 def test_load_xr(filename, chunk, join):
     data = lstpy.load_xr(filename, chunk=chunk, join=join)
