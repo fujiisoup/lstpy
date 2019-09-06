@@ -12,7 +12,7 @@ file3 = THIS_DIR + '/data/binary_example_3dimenions_mpa4.lst'
 
 
 @pytest.mark.parametrize(('filename', 'chunk', 'join'), [
-    # (file, None, 'inner'),
+    (file, None, 'inner'),
     (file3, None, 'inner'),
 ])
 def test_load_xr(filename, chunk, join):

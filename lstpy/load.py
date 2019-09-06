@@ -306,7 +306,6 @@ def _load_np4(file, filesize, chunk, is_ascii):
     For MPA4 format
     """
     pos = file.tell()
-    size = (filesize - pos) // np.dtype('u2').itemsize
     if is_ascii:
         def str2int(s):
             val = np.int64(int(s[:8], base=16)) << 32 | np.int64(int(s[8:], base=16))
@@ -315,7 +314,8 @@ def _load_np4(file, filesize, chunk, is_ascii):
         # TODO enable chunk
         data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
-        data = np.memmap(file, dtype='<u2', mode='r', offset=pos,
+        size = (filesize - pos) // np.dtype('i8').itemsize
+        data = np.memmap(file, dtype='<i8', mode='r', offset=pos,
                          shape=(size, ))
 
     if chunk is None:
@@ -369,12 +369,10 @@ def decode4(data):
 
             active_adcs = (da & 0xFF00) >> 8
             pos = 1
+
             for i, bmask in enumerate(adc_bmask):
                 if (active_adcs & bmask) != 0:
-                    if (alive_adcs & bmask) == 0:
-                        ch[l] = -1  # set -1 for dead channels
-                    else:
-                        ch[l] = i
+                    ch[l] = i
                     time[l] = t_count
                     events[l] = event_id
                     values[l] = (data[j] >> (pos * 16)) & 0xFFFF
