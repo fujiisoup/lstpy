@@ -1,3 +1,4 @@
+import warnings
 from os.path import getsize
 from collections import OrderedDict
 from multiprocessing import Pool
@@ -32,7 +33,12 @@ def load(filename, chunk=None):
         if version == 3:
             return header, _load_np(file, filesize, chunk)
         elif version == 4:
-            return header, _load_np4(file, filesize, chunk, is_ascii)
+            try:
+                pos = file.tell()
+                return header, _load_np4(file, filesize, chunk, is_ascii)
+            except ValueError:  # in case of binary file
+                file.seek(pos)
+                return header, _load_np4(file, filesize, chunk, False)
 
 
 def _parse_header(header):
@@ -68,7 +74,7 @@ def _parse_header(header):
     return header_dict
 
 
-def load_xr(filename, chunk=None, join='inner', remove_rare_ch=0.001):
+def load_xr(filename, chunk=None, join='inner', remove_rare_ch=None):
     """
     Load list file and return as xr.DataArray
 
@@ -104,31 +110,32 @@ def load_xr(filename, chunk=None, join='inner', remove_rare_ch=0.001):
     """
     import xarray as xr
 
+    if remove_rare_ch:
+        warnings.warn(
+            "remove_rare_ch is deprecated. Now it is inferred from the header",
+            DeprecationWarning)
+
     header, (values, time, ch, events) = load(filename, chunk)
+    header = _parse_header(header)
 
     dataarray =  xr.DataArray(values, dims=['entry'],
                               coords={'time': ('entry', time),
                                       'ch': ('entry', ch),
                                       'events': ('entry', events)},
-                              attrs=_parse_header(header))
-
-    channels, counts = np.unique(ch, return_counts=True)
-    valids = [True] * len(channels)
-    if remove_rare_ch is not None:
-        for i in range(len(channels)):
-            if counts[i] / len(ch) < remove_rare_ch:
-                valids[i] = False
-    channels = channels[valids]
-    channels = channels[channels >= 0]
+                              attrs=header)
+    # valid channels from header
+    channels = [i for i in range(16)
+                if header.get('ADC{}.active'.format(i + 1), 0) > 0]
     dataarrays = []
     for ch in channels:
         da = dataarray[dataarray['ch'] == ch]
         da = da.swap_dims({'entry': 'events'})
-        da['ch'] = da['ch'][0].values
+        da['ch'] = da['ch'][0].values + 1  # use the actual ADC number
         dataarrays.append(da)
 
     return xr.concat(xr.align(*dataarrays, join=join),
-                     dim=xr.DataArray(channels, dims='ch', name='ch'))
+                     dim=xr.DataArray(np.array(channels, dtype=np.int8),
+                                      dims='ch', name='ch'))
 
 
 def _read_header(file):
@@ -299,7 +306,6 @@ def _load_np4(file, filesize, chunk, is_ascii):
     For MPA4 format
     """
     pos = file.tell()
-    size = (filesize - pos) // np.dtype('u2').itemsize
     if is_ascii:
         def str2int(s):
             val = np.int64(int(s[:8], base=16)) << 32 | np.int64(int(s[8:], base=16))
@@ -308,8 +314,9 @@ def _load_np4(file, filesize, chunk, is_ascii):
         # TODO enable chunk
         data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
-        raise NotImplementedError(
-            'binary format for MPA4 system is not yet Implemented.')
+        size = (filesize - pos) // np.dtype('i8').itemsize
+        data = np.memmap(file, dtype='<i8', mode='r', offset=pos,
+                         shape=(size, ))
 
     if chunk is None:
         # read into memory
@@ -362,12 +369,10 @@ def decode4(data):
 
             active_adcs = (da & 0xFF00) >> 8
             pos = 1
+
             for i, bmask in enumerate(adc_bmask):
                 if (active_adcs & bmask) != 0:
-                    if (alive_adcs & bmask) == 0:
-                        ch[l] = -1  # set -1 for dead channels
-                    else:
-                        ch[l] = i
+                    ch[l] = i
                     time[l] = t_count
                     events[l] = event_id
                     values[l] = (data[j] >> (pos * 16)) & 0xFFFF
