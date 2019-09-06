@@ -13,7 +13,9 @@ file3 = THIS_DIR + '/data/binary_example_3dimenions_mpa4.lst'
 
 @pytest.mark.parametrize(('filename', 'chunk', 'join'), [
     (file, None, 'inner'),
-    (file3, None, 'inner'),
+    (file3, 'auto', 'inner'),
+    (file3, 'auto(2)', 'inner'),
+    (file3, 'auto(2)', 'outer'),
 ])
 def test_load_xr(filename, chunk, join):
     data = lstpy.load_xr(filename, chunk=chunk, join=join)
@@ -30,4 +32,9 @@ def test_load_xr(filename, chunk, join):
     assert len(data['ch']) > 0
     assert len(data['events']) > 0
     assert data.sum() > 0
-    assert (data > 0).all()
+    if join != 'outer':
+        assert (data > 0).all()
+
+    if chunk == 'auto':
+        expected = lstpy.load_xr(filename, chunk=None, join=join)
+        assert (data.fillna(111111) == expected.fillna(111111)).all()
