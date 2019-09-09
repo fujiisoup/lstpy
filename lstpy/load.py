@@ -1,5 +1,5 @@
 import warnings
-from os.path import getsize
+import os
 from collections import OrderedDict
 from multiprocessing import Pool
 from functools import partial
@@ -8,15 +8,20 @@ import numpy as np
 from numba import njit
 
 
-def load(filename, chunk=None):
+def load(filename, chunk='auto'):
     """
     Load list file.
 
     Parameters
     ----------
     filename: path to the file
-    chunk: integer or None
-        If integer, minibutch readout is performed.
+    chunk: integer or None or 'auto' or 'auto(*)' where * is an integer.
+        If None, no parallelization.
+        If 'auto' is used, infer the number of core in CPU and parallel readout
+        is carried out.
+        If 'auto(4)' is used, 4 threads are used.
+        If integer is used (say, n), approximately parallel readout will be used with
+        approximately n data per therads.
 
     Returns
     -------
@@ -27,7 +32,7 @@ def load(filename, chunk=None):
     ch: 1d np.ndarray of uint8 size n
         Which analog-digital convertor (ch) does each entry of data belong to.
     """
-    filesize = getsize(filename)
+    filesize = os.path.getsize(filename)
     with open(filename, 'rb') as file:
         file, header, version, is_ascii = _read_header(file)
         if version == 3:
@@ -74,15 +79,20 @@ def _parse_header(header):
     return header_dict
 
 
-def load_xr(filename, chunk=None, join='inner', remove_rare_ch=None):
+def load_xr(filename, chunk='auto', join='inner', remove_rare_ch=None):
     """
     Load list file and return as xr.DataArray
 
     Parameters
     ----------
     filename: path to the file
-    chunk: integer or None
-        If integer, minibutch readout is performed.
+    chunk: integer or None or 'auto' or 'auto(*)' where * is an integer.
+        If None, no parallelization.
+        If 'auto' is used, infer the number of core in CPU and parallel readout
+        is carried out.
+        If 'auto(4)' is used, 4 threads are used.
+        If integer is used (say, n), approximately parallel readout will be used with
+        approximately n data per therads.
     join: 'inner' or 'outer'
         How to handle the missing values.
     remove_rare_ch: float
@@ -167,6 +177,7 @@ def _load_np(file, filesize, chunk):
         # read into memory
         return decode(data.copy())[:4]  # do not return t_last
 
+    chunk = _get_chunk(chunk, len(data))
     # find a separation of each blocks
     pos = 0
     slices = []
@@ -320,19 +331,71 @@ def _load_np4(file, filesize, chunk, is_ascii):
 
     if chunk is None:
         # read into memory
+        if not is_ascii:
+            data = data.copy()
         return decode4(data)[:4]  # do not return t_last
-    else:
-        raise NotImplementedError('chunk is not supported for MPA4 data.')
+
+    chunk = _get_chunk(chunk, len(data))
+    # chunking read
+    # find a separation of each blocks
+    pos = 0
+    slices = []
+    while pos < len(data) - 1:
+        assert data[pos] & 0b1000 == 8  # timer
+        num_lines = _next_timer_pos4(data[pos + 1:], chunk)
+        if num_lines == 0:
+            num_lines = len(data) - pos
+        if num_lines == 0:
+            break
+        slices.append(slice(pos, pos + num_lines + 1))
+        pos += num_lines + 1
+
+    pool = Pool()
+    results = pool.map(decode4, [data[sl].copy() for sl in slices])
+
+    values = []
+    time = []
+    ch = []
+    events = []
+    t_last_cumsum = 0
+    events_last_cumsum = 0
+    for res in results:
+        v, t, c, e, tl = res
+        values.append(v)
+        time.append(t + t_last_cumsum)
+        t_last_cumsum += tl
+        ch.append(c)
+        events.append(e + events_last_cumsum)
+        if len(e) > 0:
+            events_last_cumsum += e[-1] + 1
+
+    # TODO. Use dask if possible
+    return (np.concatenate(values), np.concatenate(time),
+            np.concatenate(ch), np.concatenate(events))
+
+
+@njit
+def _next_timer_pos4(data, j):
+    n = len(data)
+    for i in range(j, n):
+        if data[i] & 0b1000 == 8:
+            return i
+    return n
+
+
+# function to run in parallel
+def _decode_copy4(data):
+    return decode4(data)
 
 
 @njit
 def decode4(data):
     n = len(data)
 
-    values = np.zeros(n * 2, dtype=np.uint16)
-    ch = np.zeros(n * 2, dtype=np.int8)
-    time = np.zeros(n * 2, dtype=np.uint32)
-    events = np.zeros(n * 2, dtype=np.uint32)
+    values = np.zeros(n * 4, dtype=np.uint16)
+    ch = np.zeros(n * 4, dtype=np.int8)
+    time = np.zeros(n * 4, dtype=np.uint32)
+    events = np.zeros(n * 4, dtype=np.uint32)
 
     l = 0  # index for data values
     t_count = 0  # index for the timing
@@ -388,3 +451,21 @@ def decode4(data):
             raise ValueError  # TODO skip to the next timer event
 
     return values[:l], time[:l], ch[:l], events[:l], t_count
+
+
+def _get_chunk(chunk, n):
+    if chunk == 'auto':
+        if not hasattr(os, 'sched_getaffinity'):  # python 2
+            # just assume 4 cores
+            cores = 4
+        else:
+            cores = len(os.sched_getaffinity(0))
+        return n // cores + 1
+    if 'auto(' in chunk:
+        cores = int(chunk[chunk.find('auto(') + 5: chunk.find(')')])
+        return n // cores + 1
+    try:
+        return int(chunk)
+    except ValueError:
+        raise ValueError("{} is invalid for chunk. Use 'auto' instead".format(
+            chunk))

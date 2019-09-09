@@ -2,7 +2,7 @@ import numpy as np
 from .load import load_xr
 
 
-def load_histogram(filename, n_bins=1, max_values=2**13, chunk=None,
+def load_histogram(filename, n_bins=1, max_values=2**13, chunk='auto',
                    remove_rare_ch=None):
     return histogram(load_xr(filename, chunk, join='inner',
                              remove_rare_ch=remove_rare_ch),
