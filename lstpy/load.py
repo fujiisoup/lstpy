@@ -334,8 +334,6 @@ def _load_np4(file, filesize, chunk, is_ascii):
         if not is_ascii:
             data = data.copy()
         return decode4(data)[:4]  # do not return t_last
-    if is_ascii:
-        raise NotImplementedError('chunk is not supported for MPA4 ascii format.')
 
     chunk = _get_chunk(chunk, len(data))
     # chunking read
