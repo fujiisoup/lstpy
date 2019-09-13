@@ -52,6 +52,7 @@ Attributes:
     ...
 ```
 
+
 ## More practical usage
 
 Load a list file and construct a histogram.
@@ -76,7 +77,14 @@ Coordinates:
 
 >>> np.log(da).plot()
 ```
-![alt text](doc/test.png "Logo Title Text 1")
+
+![alt text](doc/test.png "Histogram")
+
+This is equivalent to
+```python
+>>> data = lstpy.load_xr('test_public/data/Neon_KLL_002.lst')
+>>> da = lstpy.load_histogram(data, n_bins=2)
+```
 
 
 # Constribution

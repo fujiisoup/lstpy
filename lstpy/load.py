@@ -88,15 +88,16 @@ def load_xr(filename, chunk='auto', join='inner', remove_rare_ch=None):
     filename: path to the file
     chunk: integer or None or 'auto' or 'auto(*)' where * is an integer.
         If None, no parallelization.
-        If 'auto' is used, infer the number of core in CPU and parallel readout
-        is carried out.
+        If 'auto' is used, infer the number of cores in CPU and perform
+        parallel readout.
         If 'auto(4)' is used, 4 threads are used.
-        If integer is used (say, n), approximately parallel readout will be used with
-        approximately n data per therads.
+        If integer is used (say, n), parallel readout will be used with
+        approximately n data per thereads.
     join: 'inner' or 'outer'
         How to handle the missing values.
-    remove_rare_ch: float
-        remove the rare channels that are very rare
+        With 'inner', only the synchronized events are loaded.
+        With 'outer', all the events are loaded.
+    remove_rare_ch: (deprecated)
 
     Returns
     -------
