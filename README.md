@@ -83,7 +83,7 @@ Coordinates:
 This is equivalent to
 ```python
 >>> data = lstpy.load_xr('test_public/data/Neon_KLL_002.lst')
->>> da = lstpy.load_histogram(data, n_bins=2)
+>>> da = lstpy.utils.histogram(data, n_bins=2)
 ```
 
 
