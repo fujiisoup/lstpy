@@ -7,6 +7,12 @@ from functools import partial
 import numpy as np
 from numba import njit
 
+try:
+    import pandas as pd
+    _HAS_PANDAS_ = True
+except ImportError:
+    _HAS_PANDAS_ = False
+
 
 def load(filename, chunk='auto'):
     """
@@ -323,8 +329,11 @@ def _load_np4(file, filesize, chunk, is_ascii):
             val = np.int64(int(s[:8], base=16)) << 32 | np.int64(int(s[8:], base=16))
             return val
 
-        # TODO enable chunk
-        data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
+        if _HAS_PANDAS_:
+            # TODO enable chunk
+            data = pd.read_csv(file, converters={0: str2int}).values[:, 0]
+        else:
+            data = np.loadtxt(file, converters={0: str2int}, dtype=np.int64)
     else:
         size = (filesize - pos) // np.dtype('i8').itemsize
         data = np.memmap(file, dtype='<i8', mode='r', offset=pos,
