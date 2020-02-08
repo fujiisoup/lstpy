@@ -11,8 +11,14 @@ file = THIS_DIR + '/data/Neon_KLL_002.lst'
 file3 = THIS_DIR + '/data/binary_example_3dimenions_mpa4.lst'
 
 
+def test_load_many():
+    for i in range(1):
+        data = lstpy.load_xr(file, chunk='auto', join='inner')
+    
+
 @pytest.mark.parametrize(('filename', 'chunk', 'join'), [
     (file, None, 'inner'),
+    (file, 'auto', 'inner'),
     (file3, 'auto', 'inner'),
     (file3, 'auto(2)', 'inner'),
     (file3, 'auto(2)', 'outer'),
@@ -35,6 +41,9 @@ def test_load_xr(filename, chunk, join):
     if join != 'outer':
         assert (data > 0).all()
 
-    if chunk == 'auto':
+    if chunk is not None:
         expected = lstpy.load_xr(filename, chunk=None, join=join)
+        assert(data.shape == expected.shape)
+        assert (data.fillna(111111).values == expected.fillna(111111).values).all()
+        assert (data['events'].values == expected['events'].values).all()
         assert (data.fillna(111111) == expected.fillna(111111)).all()

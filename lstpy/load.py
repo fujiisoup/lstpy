@@ -211,6 +211,10 @@ def _load_np(file, filesize, chunk):
         if len(e) > 0:
             events_last_cumsum += e[-1]
 
+    # make sure to close the nmap
+    if hasattr(data, '_nmap'):
+        data._mmap.close()
+
     return (np.concatenate(values), np.concatenate(time),
             np.concatenate(ch), np.concatenate(events))
 
@@ -348,7 +352,7 @@ def _load_np4(file, filesize, chunk, is_ascii):
             num_lines = len(data) - pos
         if num_lines == 0:
             break
-        slices.append(slice(pos, pos + num_lines + 1))
+        slices.append(slice(pos, pos + num_lines + 2))
         pos += num_lines + 1
 
     pool = Pool()
@@ -368,8 +372,11 @@ def _load_np4(file, filesize, chunk, is_ascii):
         ch.append(c)
         events.append(e + events_last_cumsum)
         if len(e) > 0:
-            events_last_cumsum += e[-1] + 1
+            events_last_cumsum += e[-1]
 
+    # make sure to close the nmap
+    if hasattr(data, '_nmap'):
+        data._mmap.close()
     # TODO. Use dask if possible
     return (np.concatenate(values), np.concatenate(time),
             np.concatenate(ch), np.concatenate(events))
