@@ -199,8 +199,8 @@ def _load_np(file, filesize, chunk):
         slices.append(slice(pos, pos + num_lines))
         pos += num_lines
 
-    pool = Pool()
-    results = pool.map(_decode_copy, [data[sl] for sl in slices])
+    with Pool() as pool:
+        results = pool.map(_decode_copy, [data[sl] for sl in slices])
 
     values = []
     time = []
@@ -366,8 +366,8 @@ def _load_np4(file, filesize, chunk, is_ascii):
         slices.append(slice(pos, pos + num_lines + 2))
         pos += num_lines + 1
 
-    pool = Pool()
-    results = pool.map(decode4, [data[sl] for sl in slices])
+    with Pool() as pool:
+        results = pool.map(decode4, [data[sl] for sl in slices])
 
     values = []
     time = []
