@@ -42,14 +42,15 @@ def load(filename, chunk='auto'):
     with open(filename, 'rb') as file:
         file, header, version, is_ascii = _read_header(file)
         if version == 3:
-            return header, _load_np(file, filesize, chunk)
+            data = _load_np(file, filesize, chunk)
         elif version == 4:
             try:
                 pos = file.tell()
-                return header, _load_np4(file, filesize, chunk, is_ascii)
+                data = _load_np4(file, filesize, chunk, is_ascii)
             except ValueError:  # in case of binary file
                 file.seek(pos)
-                return header, _load_np4(file, filesize, chunk, False)
+                data = _load_np4(file, filesize, chunk, False)
+    return header, data
 
 
 def _parse_header(header):
@@ -198,8 +199,8 @@ def _load_np(file, filesize, chunk):
         slices.append(slice(pos, pos + num_lines))
         pos += num_lines
 
-    pool = Pool()
-    results = pool.map(_decode_copy, [data[sl] for sl in slices])
+    with Pool() as pool:
+        results = pool.map(_decode_copy, [data[sl] for sl in slices])
 
     values = []
     time = []
@@ -218,8 +219,9 @@ def _load_np(file, filesize, chunk):
             events_last_cumsum += e[-1]
 
     # make sure to close the nmap
-    if hasattr(data, '_nmap'):
+    if hasattr(data, '_mmap'):
         data._mmap.close()
+    del data
 
     return (np.concatenate(values), np.concatenate(time),
             np.concatenate(ch), np.concatenate(events))
@@ -243,7 +245,7 @@ def get_sync_pos(data):
 # function to run in parallel
 def _decode_copy(data):
     # read a part of data into memory
-    return decode(data.copy())
+    return decode(np.array(data))
 
 
 @njit
@@ -364,8 +366,8 @@ def _load_np4(file, filesize, chunk, is_ascii):
         slices.append(slice(pos, pos + num_lines + 2))
         pos += num_lines + 1
 
-    pool = Pool()
-    results = pool.map(decode4, [data[sl].copy() for sl in slices])
+    with Pool() as pool:
+        results = pool.map(decode4, [data[sl] for sl in slices])
 
     values = []
     time = []
@@ -384,8 +386,9 @@ def _load_np4(file, filesize, chunk, is_ascii):
             events_last_cumsum += e[-1]
 
     # make sure to close the nmap
-    if hasattr(data, '_nmap'):
+    if hasattr(data, '_mmap'):
         data._mmap.close()
+    del data
     # TODO. Use dask if possible
     return (np.concatenate(values), np.concatenate(time),
             np.concatenate(ch), np.concatenate(events))
