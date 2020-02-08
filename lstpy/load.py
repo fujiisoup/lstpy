@@ -220,6 +220,7 @@ def _load_np(file, filesize, chunk):
     # make sure to close the nmap
     if hasattr(data, '_nmap'):
         data._mmap.close()
+    del data
 
     return (np.concatenate(values), np.concatenate(time),
             np.concatenate(ch), np.concatenate(events))
@@ -386,6 +387,7 @@ def _load_np4(file, filesize, chunk, is_ascii):
     # make sure to close the nmap
     if hasattr(data, '_nmap'):
         data._mmap.close()
+    del data
     # TODO. Use dask if possible
     return (np.concatenate(values), np.concatenate(time),
             np.concatenate(ch), np.concatenate(events))
