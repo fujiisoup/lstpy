@@ -219,7 +219,7 @@ def _load_np(file, filesize, chunk):
             events_last_cumsum += e[-1]
 
     # make sure to close the nmap
-    if hasattr(data, '_nmap'):
+    if hasattr(data, '_mmap'):
         data._mmap.close()
     del data
 
@@ -386,7 +386,7 @@ def _load_np4(file, filesize, chunk, is_ascii):
             events_last_cumsum += e[-1]
 
     # make sure to close the nmap
-    if hasattr(data, '_nmap'):
+    if hasattr(data, '_mmap'):
         data._mmap.close()
     del data
     # TODO. Use dask if possible
