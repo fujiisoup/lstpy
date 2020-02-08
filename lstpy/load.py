@@ -245,7 +245,7 @@ def get_sync_pos(data):
 # function to run in parallel
 def _decode_copy(data):
     # read a part of data into memory
-    return decode(data.copy())
+    return decode(np.array(data))
 
 
 @njit
