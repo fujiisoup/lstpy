@@ -14,7 +14,7 @@ except ImportError:
     _HAS_PANDAS_ = False
 
 
-def load(filename, chunk='auto'):
+def load(filename, chunk='auto', concatenate=True):
     """
     Load list file.
 
@@ -28,6 +28,8 @@ def load(filename, chunk='auto'):
         If 'auto(4)' is used, 4 threads are used.
         If integer is used (say, n), approximately parallel readout will be used with
         approximately n data per therads.
+    concatenate: boolean
+        If False, it returns a list of values that are not concatenated (sometimes speeds up the later analysis).
 
     Returns
     -------
@@ -42,14 +44,15 @@ def load(filename, chunk='auto'):
     with open(filename, 'rb') as file:
         file, header, version, is_ascii = _read_header(file)
         if version == 3:
-            data = _load_np(file, filesize, chunk)
+            data = _load_np(file, filesize, chunk, concatenate=concatenate)
         elif version == 4:
+            pos = file.tell()
             try:
-                pos = file.tell()
-                data = _load_np4(file, filesize, chunk, is_ascii)
+                data = _load_np4(file, filesize, chunk, is_ascii, concatenate=concatenate)
             except ValueError:  # in case of binary file
                 file.seek(pos)
-                data = _load_np4(file, filesize, chunk, False)
+                data = _load_np4(file, filesize, chunk, False, concatenate=concatenate)
+            
     return header, data
 
 
@@ -133,8 +136,21 @@ def load_xr(filename, chunk='auto', join='inner', remove_rare_ch=None):
             "remove_rare_ch is deprecated. Now it is inferred from the header",
             DeprecationWarning)
 
-    header, (values, time, ch, events) = load(filename, chunk)
+    header, (values, time, ch, events) = load(filename, chunk, concatenate=False)
     header = _parse_header(header)
+
+    return xr.concat(
+        [_construct_dataarrays(header, v, t, c, e, join) for v, t, c, e in zip(
+            values, time, ch, events
+        )], dim='events'
+    )            
+
+
+def _construct_dataarrays(header, values, time, ch, events, join):
+    """
+    Construct a xr.DataArray from extracted values
+    """
+    import xarray as xr
 
     dataarray =  xr.DataArray(values, dims=['entry'],
                               coords={'time': ('entry', time),
@@ -148,12 +164,13 @@ def load_xr(filename, chunk='auto', join='inner', remove_rare_ch=None):
     for ch in channels:
         da = dataarray[dataarray['ch'] == ch]
         da = da.swap_dims({'entry': 'events'})
-        da['ch'] = da['ch'][0].values + 1  # use the actual ADC number
+        da['ch'] = da['ch'][0].values  # make it scalar
         dataarrays.append(da)
 
-    return xr.concat(xr.align(*dataarrays, join=join),
+    data = xr.concat(xr.align(*dataarrays, join=join),
                      dim=xr.DataArray(np.array(channels, dtype=np.int8),
                                       dims='ch', name='ch'))
+    return data
 
 
 def _read_header(file):
@@ -175,7 +192,7 @@ def _read_header(file):
     return file, header, version, is_ascii
 
 
-def _load_np(file, filesize, chunk):
+def _load_np(file, filesize, chunk, concatenate=True):
     pos = file.tell()
     size = (filesize - pos) // np.dtype('u2').itemsize
     data = np.memmap(file, dtype='<u2', mode='r', offset=pos,
@@ -183,7 +200,11 @@ def _load_np(file, filesize, chunk):
     n = len(data)
     if chunk is None:
         # read into memory
-        return decode(data.copy())[:4]  # do not return t_last
+        values, time, ch, events = decode(data.copy())[:4]  # do not return t_last
+        if concatenate:
+            return values, time, ch, events
+        else:
+            return [values], [time], [ch], [events]
 
     chunk = _get_chunk(chunk, len(data))
     # find a separation of each blocks
@@ -223,8 +244,11 @@ def _load_np(file, filesize, chunk):
         data._mmap.close()
     del data
 
-    return (np.concatenate(values), np.concatenate(time),
-            np.concatenate(ch), np.concatenate(events))
+    if concatenate:
+        return (np.concatenate(values), np.concatenate(time),
+                np.concatenate(ch), np.concatenate(events))
+    else:
+        return values, time, ch, events
 
 
 _bitmask = np.array([0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
@@ -325,13 +349,17 @@ def _next_timer_pos(data, j):
     return n
 
 
-def _load_np4(file, filesize, chunk, is_ascii):
+def _load_np4(file, filesize, chunk, is_ascii, concatenate=True):
     """
     For MPA4 format
     """
     pos = file.tell()
     if is_ascii:
         def str2int(s):
+            if len(s) <= 8:
+                # if invalid, overwrite invalid entry by time event
+                return np.int64(int(s[:8], base=16)) << 32 | 0b1000
+            
             val = np.int64(int(s[:8], base=16)) << 32 | np.int64(int(s[8:], base=16))
             return val
 
@@ -349,7 +377,11 @@ def _load_np4(file, filesize, chunk, is_ascii):
         # read into memory
         if not is_ascii:
             data = data.copy()
-        return decode4(data)[:4]  # do not return t_last
+        values, time, ch, events = decode4(data)[:4]  # do not return t_last
+        if concatenate:
+            return values, time, ch, events
+        else:
+            return [values], [time], [ch], [events]
 
     chunk = _get_chunk(chunk, len(data))
     # chunking read
@@ -358,6 +390,7 @@ def _load_np4(file, filesize, chunk, is_ascii):
     slices = []
     while pos < len(data) - 1:
         assert data[pos] & 0b1000 == 8  # timer
+
         num_lines = _next_timer_pos4(data[pos + 1:], chunk)
         if num_lines == 0:
             num_lines = len(data) - pos
@@ -390,8 +423,11 @@ def _load_np4(file, filesize, chunk, is_ascii):
         data._mmap.close()
     del data
     # TODO. Use dask if possible
-    return (np.concatenate(values), np.concatenate(time),
-            np.concatenate(ch), np.concatenate(events))
+    if concatenate:
+        return (np.concatenate(values), np.concatenate(time),
+                np.concatenate(ch), np.concatenate(events))
+    else:
+        return values, time, ch, events
 
 
 @njit
@@ -481,7 +517,9 @@ def _get_chunk(chunk, n):
         else:
             cores = len(os.sched_getaffinity(0))
         return n // cores + 1
-    if 'auto(' in chunk:
+    if isinstance(chunk, int):
+        return chunk
+    elif 'auto(' in chunk:
         cores = int(chunk[chunk.find('auto(') + 5: chunk.find(')')])
         return n // cores + 1
     try:
