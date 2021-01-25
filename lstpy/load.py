@@ -357,7 +357,9 @@ def _load_np4(file, filesize, chunk, is_ascii):
     pos = 0
     slices = []
     while pos < len(data) - 1:
-        assert data[pos] & 0b1000 == 8  # timer
+        # sometimes the first line is not the timer
+        assert pos == 0 or data[pos] & 0b1000 == 8  # timer
+
         num_lines = _next_timer_pos4(data[pos + 1:], chunk)
         if num_lines == 0:
             num_lines = len(data) - pos
