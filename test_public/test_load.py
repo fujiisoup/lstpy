@@ -9,17 +9,6 @@ THIS_DIR = os.path.dirname(__file__)
 file = THIS_DIR + '/data/Neon_KLL_002.lst'
 # file2 = THIS_DIR + '/data/Biedermann036.lst'
 file3 = THIS_DIR + '/data/binary_example_3dimenions_mpa4.lst'
-file4 = THIS_DIR + '/data/Fe_inj008_small.lst'
-file5 = THIS_DIR + '/data/Fe_inj008_small2.lst'
-
-
-def test_buggy_file():
-    """
-    First part of file 5 should be the same with file4.
-    """
-    expected = lstpy.load_xr(file5)
-    actual = lstpy.load_xr(file4)
-    assert (actual.isel(events=slice(0, expected.sizes['events'])) == expected).all()
 
 
 def test_load_many():
@@ -33,8 +22,6 @@ def test_load_many():
     (file3, 'auto', 'inner'),
     (file3, 'auto(2)', 'inner'),
     (file3, 'auto(2)', 'outer'),
-    (file4, 'auto(2)', 'outer'),
-    # (file4, 10000, 'outer'),
 ])
 def test_load_xr(filename, chunk, join):
     data = lstpy.load_xr(filename, chunk=chunk, join=join)
@@ -55,7 +42,6 @@ def test_load_xr(filename, chunk, join):
         assert (data > 0).all()
 
     if chunk is not None:
-        # make sure chunk argument does not change the result
         expected = lstpy.load_xr(filename, chunk=None, join=join)
         assert(data.shape == expected.shape)
         assert (data.fillna(111111).values == expected.fillna(111111).values).all()
