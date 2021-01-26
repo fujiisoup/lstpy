@@ -86,6 +86,15 @@ This is equivalent to
 >>> da = lstpy.utils.histogram(data, n_bins=2)
 ```
 
+## Q&A
+
+- Sometimes lst file is corrupted and cannot read
+
+Try disabling multiprocessing, by setting `chunk=None`, 
+```python
+lstpy.load_xr('test_public/data/Neon_KLL_002.lst', chunk=None)
+```
+
 
 # Constribution
 
